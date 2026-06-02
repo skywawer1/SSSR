@@ -1,66 +1,10 @@
-/* Настройка палитры МЧС ШССР по вашим параметрам */
-.bg-mchs-dark { background-color: #0b0f19; }
+/* Основные фирменные цвета МЧС ШССР */
 .bg-mchs-blue { background-color: #0b2240; }
-.text-mchs-orange { color: #f59e0b; }
+.bg-mchs-dark { background-color: #111827; }
+.text-mchs-orange { color: #f97316; }
+.border-mchs-orange { border-color: #f97316; }
 
-/* Логика отображения вкладок панели */
-.tab-content {
-    display: none;
-}
-.tab-content.active {
-    display: block;
-}
-
-/* Элементы меню Деятельность */
-.dropdown-item {
-    display: block;
-    width: 100%;
-    text-align: left;
-    padding: 0.75rem 1rem;
-    font-size: 0.75rem;
-    color: #cbd5e1;
-    border-bottom: 1px solid #1e293b;
-    transition: all 0.15s ease-in-out;
-}
-.dropdown-item:hover {
-    background-color: rgba(30, 41, 59, 0.6);
-    color: #f59e0b;
-    padding-left: 1.25rem;
-}
-
-/* Формы ввода для админ-панели */
-.admin-input {
-    width: 100%;
-    background-color: #030712;
-    border: 1px solid #1e293b;
-    padding: 0.625rem;
-    font-size: 0.875rem;
-    color: #f8fafc;
-    border-radius: 0.1875rem;
-    transition: border-color 0.15s ease;
-}
-.admin-input:focus {
-    border-color: #f59e0b;
-    outline: none;
-}
-
-/* Кнопки управления */
-.admin-btn {
-    width: 100%;
-    padding: 0.625rem;
-    border-radius: 0.1875rem;
-    font-size: 0.75rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    transition: background-color 0.15s ease;
-}
-
-/* Анимации */
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(3px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-.animate-fadeIn {
-    animation: fadeIn 0.2s ease-out forwards;
+/* Плавные переходы для кнопок вкладок */
+.tab-btn {
+    transition: all 0.2s ease-in-out;
 }
