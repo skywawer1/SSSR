@@ -1,9 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import { getFirestore, collection, getDocs, getDoc, setDoc, doc, addDoc, deleteDoc, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { getFirestore, doc, setDoc, getDoc, collection, query, where, getDocs, updateDoc, addDoc, deleteDoc, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-// === ЗАМЕНИТЕ НА ВАШИ ПАРАМЕТРЫ ИЗ ПРОЕКТА FIREBASE ===
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
   apiKey: "AIzaSyDlZOtnG9C425Y37kNtNV-LgKL_Q7XBJHY",
   authDomain: "cpd-mdt-33624.firebaseapp.com",
@@ -15,355 +13,357 @@ const firebaseConfig = {
   measurementId: "G-04527XCV90"
 };
 
+// Инициализация Firebase
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
 let currentUser = null;
-let userRank = 'Гражданин';
 
-// === КОНТРОЛЬ ДОСТУПА ПО ЗВАНИЯМ ИЗ ВАШЕГО ТЗ ===
 const rolePermissions = {
-    'Ген.сек': { adminPanel: true, canPost: true, canRank: true, canDelete: true, editPages: true, editStats: true },
-    'Секретарь ЦК СПШ': { adminPanel: true, canPost: true, canRank: true, canDelete: true, editPages: true, editStats: true },
-    'Верховный совет': { adminPanel: true, canPost: true, canRank: false, canDelete: false, editPages: false, editStats: false },
-    'Издатель газет': { adminPanel: true, canPost: true, canRank: false, canDelete: false, editPages: false, editStats: false },
-    'Нарком ВЧК (Тайная полиция)': { adminPanel: true, canPost: true, canRank: true, canDelete: true, editPages: false, editStats: true },
-    'Нарком.Пром': { adminPanel: true, canPost: true, canRank: true, canDelete: false, editPages: false, editStats: false },
-    'Нарком.Строительства': { adminPanel: true, canPost: true, canRank: true, canDelete: false, editPages: false, editStats: false },
-    'ВЧК (Тайная полиция)': { adminPanel: false, canPost: false, canRank: false, canDelete: false, editPages: false, editStats: false },
-    'Строители': { adminPanel: false, canPost: false, canRank: false, canDelete: false, editPages: false, editStats: false },
-    'Гражданин': { adminPanel: false, canPost: false, canRank: false, canDelete: false, editPages: false, editStats: false }
+    'Ген.сек': { isFull: true, canPost: true, canManageRanks: true },
+    'Секретарь ЦК СПШ': { isFull: true, canPost: true, canManageRanks: true },
+    'Верховный совет': { isFull: false, canPost: true, canManageRanks: false },
+    'Издатель газет': { isFull: false, canPost: true, canManageRanks: false },
+    'Нарком ВЧК': { isFull: false, canPost: true, canManageRanks: true },
+    'Нарком.Пром': { isFull: false, canPost: true, canManageRanks: true },
+    'Нарком.Строительства': { isFull: false, canPost: true, canManageRanks: true },
+    'ВЧК': { isFull: false, canPost: false, canManageRanks: false },
+    'Строители': { isFull: false, canPost: false, canManageRanks: false },
+    'Гражданин': { isFull: false, canPost: false, canManageRanks: false, isCivilian: true }
 };
 
-// === ИНИЦИАЛИЗАЦИЯ И СЛУШАТЕЛЬ СЕССИИ ===
+// === ИНИЦИАЛИЗАЦИЯ ===
 function init() {
-    onAuthStateChanged(auth, async (user) => {
-        const authContainer = document.getElementById('authContainer');
-        if (user) {
-            currentUser = user;
-            const userDoc = await getDoc(doc(db, "users", user.uid));
-            userRank = userDoc.exists() ? (userDoc.data().rank || 'Гражданин') : 'Гражданин';
+    const btn = document.getElementById('sitemapToggle'), menu = document.getElementById('sitemapDropdown'), chev = document.getElementById('sitemapChevron');
+    btn.addEventListener('click', (e) => { e.stopPropagation(); menu.classList.toggle('hidden'); chev.classList.toggle('rotate-180'); });
+    document.addEventListener('click', () => { menu.classList.add('hidden'); chev.classList.remove('rotate-180'); });
 
-            authContainer.innerHTML = `
-                <div class="flex items-center gap-3 bg-slate-900 border border-slate-800/60 px-3 py-1.5 rounded">
-                    <div class="text-right">
-                        <div class="text-[10px] text-gray-500 font-mono">${user.email}</div>
-                        <div class="text-[11px] font-bold text-amber-400">[${userRank}]</div>
-                    </div>
-                    <button onclick="handleLogout()" class="bg-red-950/60 border border-red-950 text-red-400 text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded hover:bg-red-900 hover:text-white transition">Выход</button>
-                </div>`;
+    renderLaws(); 
+    renderStats(); 
+    renderPosts(); 
+    renderRecommendations();
+    loadPageForEdit();
+
+    onAuthStateChanged(auth, async (user) => {
+        if (user) {
+            const docRef = doc(db, "users", user.uid);
+            const docSnap = await getDoc(docRef);
+            let userRank = 'Гражданин'; 
+            
+            if (docSnap.exists()) {
+                userRank = docSnap.data().rank || 'Гражданин';
+            } else {
+                await setDoc(doc(db, "users", user.uid), { email: user.email, rank: 'Гражданин' });
+            }
+            
+            currentUser = { email: user.email, rank: userRank, uid: user.uid };
+            updateAuthUI(currentUser);
+            renderEmployees(); 
         } else {
             currentUser = null;
-            userRank = 'Гражданин';
-            authContainer.innerHTML = `<button onclick="openModal('loginModal')" class="bg-blue-600 text-white px-4 py-1.5 rounded text-xs font-bold uppercase tracking-wider hover:bg-blue-500 transition shadow-md shadow-blue-950/50">Войти в терминал</button>`;
+            updateAuthUI(null);
         }
-        applyPermissions();
-        renderStats();
-        renderPosts();
-        renderRecommendations();
-        renderLaws();
     });
 }
 
-function applyPermissions() {
-    const perms = rolePermissions[userRank] || rolePermissions['Гражданин'];
-    document.getElementById('navAdminBtn').style.display = perms.adminPanel ? 'block' : 'none';
-    document.getElementById('admNews').style.display = perms.canPost ? 'block' : 'none';
-    document.getElementById('admStats').style.display = perms.editStats ? 'block' : 'none';
-    document.getElementById('admPages').style.display = perms.editPages ? 'block' : 'none';
-    document.getElementById('admRecs').style.display = perms.editPages ? 'block' : 'none';
-    document.getElementById('admRanks').style.display = perms.canRank ? 'block' : 'none';
-}
-
-// === ЦЕНТРАЛЬНАЯ ОПЕРАТИВНАЯ СВОДКА (СТАТИСТИКА) ===
-async function renderStats() {
-    const docSnap = await getDoc(doc(db, "globals", "stats"));
-    if (docSnap.exists()) {
-        const stats = docSnap.data();
-        document.getElementById('stat-events').innerText = stats.events || "0";
-        document.getElementById('stat-fires').innerText = stats.fires || "0";
-        document.getElementById('stat-saved').innerText = stats.saved || "0";
-        document.getElementById('stat-buildings').innerText = stats.buildings || "0";
-        
-        // Предзаполнение полей в админке для удобства
-        if(document.getElementById('opsEvents')) {
-            document.getElementById('opsEvents').value = stats.events || 0;
-            document.getElementById('opsFires').value = stats.fires || 0;
-            document.getElementById('opsSaved').value = stats.saved || 0;
-            document.getElementById('opsBuildings').value = stats.buildings || 0;
-        }
-    }
-}
-
-async function handleUpdateStats() {
-    await setDoc(doc(db, "globals", "stats"), {
-        events: document.getElementById('opsEvents').value || "0",
-        fires: document.getElementById('opsFires').value || "0",
-        saved: document.getElementById('opsSaved').value || "0",
-        buildings: document.getElementById('opsBuildings').value || "0"
-    }, { merge: true });
-    alert("Данные оперативной сводки успешно синхронизированы с базой!");
-    renderStats();
-    switchTab('mainTab');
-}
-
-// === ВЕДОМСТВЕННАЯ ЛЕНТА НОВОСТЕЙ ===
-async function renderPosts() {
-    const grid = document.getElementById('newsGrid');
-    grid.innerHTML = '<p class="text-xs text-gray-500 font-mono">Считывание архивов ленты...</p>';
-    
-    const querySnapshot = await getDocs(query(collection(db, "posts"), orderBy("timestamp", "desc")));
-    grid.innerHTML = '';
-    
-    if(querySnapshot.empty) {
-        grid.innerHTML = '<p class="text-xs text-gray-500 italic col-span-2">Официальных записей за текущий период не обнаружено.</p>';
-        return;
-    }
-
-    querySnapshot.forEach(docSnap => {
-        const post = docSnap.data();
-        const showDel = rolePermissions[userRank]?.canDelete;
-        grid.innerHTML += `
-            <div class="bg-slate-900 rounded border border-slate-800/80 shadow-xl flex flex-col justify-between overflow-hidden animate-fadeIn"> 
-                <div>
-                    <div class="p-4 bg-slate-950/60 border-b border-slate-800 flex justify-between items-start gap-4">
-                        <div>
-                            <span class="text-[9px] bg-blue-950 text-blue-400 font-bold uppercase tracking-widest px-2 py-0.5 rounded border border-blue-900/40">${post.category || 'ЧС'}</span>
-                            <h4 class="font-extrabold text-sm text-white mt-2 leading-snug">${post.title}</h4>
-                        </div>
-                        <span class="text-[10px] font-mono text-gray-500 whitespace-nowrap">${post.date}</span>
-                    </div>
-                    <div class="p-4 text-xs text-gray-300 leading-relaxed whitespace-pre-wrap">${post.content}</div>
-                </div>
-                ${showDel ? `
-                <div class="p-2.5 bg-slate-950/40 border-t border-slate-800/60 text-right">
-                    <button onclick="deletePost('${docSnap.id}')" class="text-rose-500 text-[10px] uppercase tracking-wider font-bold hover:text-rose-400 transition">Аннулировать запись ✕</button>
-                </div>` : ''}
-            </div>`;
-    });
-}
-
-async function handleCreatePost() {
-    const cat = document.getElementById('postCategory').value;
-    const title = document.getElementById('postTitle').value;
-    const content = document.getElementById('postContent').value;
-
-    if(!title || !content) return alert("Заполните тему и текст записи!");
-
-    await addDoc(collection(db, "posts"), {
-        category: cat || "Сводка",
-        title: title,
-        content: content,
-        date: new Date().toLocaleDateString('ru-RU'),
-        timestamp: serverTimestamp()
-    });
-
-    document.getElementById('postCategory').value = '';
-    document.getElementById('postTitle').value = '';
-    document.getElementById('postContent').value = '';
-
-    renderPosts();
-    switchTab('mainTab');
-}
-
-async function deletePost(id) {
-    if (confirm("Вы подтверждаете безвозвратное исключение записи из базы данных?")) {
-        await deleteDoc(doc(db, "posts", id));
-        renderPosts();
-    }
-}
-
-// === УГОЛОВНЫЙ КОДЕКС (ЗАКОНОДАТЕЛЬСТВО) С ФИЛЬТРОМ ===
-async function renderLaws() {
-    const c = document.getElementById('lawsContainer');
-    c.innerHTML = '<p class="text-xs text-gray-500 font-mono">Извлечение статей кодекса...</p>';
-    
-    const snapshot = await getDocs(collection(db, "laws"));
-    c.innerHTML = '';
-    
-    if(snapshot.empty) {
-        // Локальный бэкап базовых статей, если коллекция пуста в Firebase
-        const defaultLaws = [
-            { id: "1.1", title: "Против хищения имущества", text: "Хищением признается тайное или открытое присвоение имущества, принадлежащего Королевству, его институтам или другому игроку. Наказывается заключением от 2 до 5 лет." },
-            { id: "1.2", title: "Против государственной измены и мятежа", text: "Под запретом находятся организация, участие или публичная агитация в пользу движений, направленных на свержение власти." }
-        ];
-        for (let l of defaultLaws) {
-            await setDoc(doc(db, "laws", l.id), { title: l.title, text: l.text });
-        }
-        renderLaws();
-        return;
-    }
-
-    snapshot.forEach(docSnap => {
-        const law = docSnap.data();
-        c.innerHTML += `
-            <div class="law-item border border-slate-800 p-5 rounded bg-slate-900 shadow-lg transition duration-200 hover:border-slate-700">
-                <h4 class="font-bold text-amber-400 text-sm mb-2 tracking-wide">Статья ${docSnap.id}. ${law.title}</h4>
-                <p class="text-xs text-gray-300 leading-relaxed whitespace-pre-wrap">${law.text}</p>
-            </div>`;
-    });
-}
-
-function searchLaws() {
-    const q = document.getElementById('lawSearch').value.toLowerCase();
-    document.querySelectorAll('.law-item').forEach(i => {
-        i.style.display = i.innerText.toLowerCase().includes(q) ? 'block' : 'none';
-    });
-}
-
-// === ВЫПАДАЮЩИЕ ИНФОРМАЦИОННЫЕ СТРАНИЦЫ АРХИВА ===
-async function openPage(pageId) {
-    const titleEl = document.getElementById('pageViewTitle');
-    const contentEl = document.getElementById('pageViewContent');
-    titleEl.innerText = "Авторизация запроса к базе...";
-    contentEl.innerText = "Извлечение текстового блока данных из зашифрованного хранилища МЧС...";
-    switchTab('pageTab');
-
-    const docSnap = await getDoc(doc(db, "pages", pageId));
-    if (docSnap.exists()) {
-        titleEl.innerText = docSnap.data().title || pageId;
-        contentEl.innerText = docSnap.data().content || "Текстовое наполнение страницы временно отсутствует.";
-    } else {
-        titleEl.innerText = "Страница пуста";
-        contentEl.innerText = "Запись не найдена в архивах МЧС ШССР. Администратор может заполнить её через панель управления.";
-    }
-    
-    // Авто-закрытие меню
-    document.getElementById('sitemapDropdown').classList.add('hidden');
-    document.getElementById('sitemapChevron').classList.remove('rotate-180');
-}
-
-async function loadPageForEdit() {
-    const pageId = document.getElementById('pageSelect').value;
-    const docSnap = await getDoc(doc(db, "pages", pageId));
-    document.getElementById('pageEditorContent').value = docSnap.exists() ? (docSnap.data().content || "") : "";
-}
-
-async function handleSavePage() {
-    const pageId = document.getElementById('pageSelect').value;
-    const text = document.getElementById('pageEditorContent').value;
-    
-    const titles = {
-        air: "Состояние воздуха", heroes: "Герои МЧС ШССР", crisis: "Как пережить кризис",
-        attack: "Действия при обстрелах", curfew: "Комендантский час", normative: "Нормативная база",
-        tech: "Техническое обеспечение", architecture: "Архитектура Брутализма"
-    };
-
-    await setDoc(doc(db, "pages", pageId), {
-        title: titles[pageId] || pageId,
-        content: text
-    }, { merge: true });
-    
-    alert("Контент страницы сохранен в облачную базу данных!");
-}
-
-// === КАРТОЧКИ БЫСТРОГО ИНСТРУКТАЖА (РЕКОМЕНДАЦИИ) ===
-async function renderRecommendations() {
-    const grid = document.getElementById('recommendationsGrid');
-    grid.innerHTML = '';
-    const snapshot = await getDocs(collection(db, "recommendations"));
-    const isAdmin = rolePermissions[userRank]?.editPages;
-
-    snapshot.forEach(docSnap => {
-        const rec = docSnap.data();
-        grid.innerHTML += `
-            <div class="bg-gradient-to-br ${rec.bg || 'from-slate-900 to-slate-950'} border border-slate-800/80 text-white rounded p-4 relative shadow-md cursor-pointer transition transform hover:-translate-y-0.5 hover:border-slate-700 group/item" onclick="openPage('${docSnap.id}')">
-                <h4 class="font-black text-xs uppercase tracking-wide text-amber-400 group-hover/item:text-amber-300 transition">${rec.title}</h4>
-                <p class="text-[11px] text-gray-400 mt-1.5 leading-snug">${rec.desc}</p>
-                ${isAdmin ? `
-                <button onclick="event.stopPropagation(); deleteRecommendation('${docSnap.id}')" class="absolute top-2 right-2 text-rose-400 text-[9px] bg-slate-950 border border-slate-800 px-1.5 py-0.5 rounded hover:bg-rose-950 transition">✕</button>
-                ` : ''}
-            </div>`;
-    });
-}
-
-async function handleCreateRecommendation() {
-    const id = document.getElementById('recId').value;
-    const t = document.getElementById('recTitle').value;
-    const d = document.getElementById('recDesc').value;
-    const c = document.getElementById('recContent').value;
-    const b = document.getElementById('recColor').value;
-
-    if (!id || !t || !c) return alert("Поля ID, Заголовок и Контент являются обязательными!");
-
-    await setDoc(doc(db, "pages", id), { title: t, content: c }, { merge: true });
-    await setDoc(doc(db, "recommendations", id), { title: t, desc: d, bg: b });
-    
-    alert("Карточка инструктажа добавлена в интерфейс!");
-    
-    document.getElementById('recId').value = '';
-    document.getElementById('recTitle').value = '';
-    document.getElementById('recDesc').value = '';
-    document.getElementById('recContent').value = '';
-    
-    renderRecommendations();
-}
-
-async function deleteRecommendation(id) {
-    if (confirm("Удалить данную рекомендацию из панели?")) {
-        await deleteDoc(doc(db, "recommendations", id));
-        renderRecommendations();
-    }
-}
-
-// === УПРАВЛЕНИЕ ЛИЧНЫМ СОСТАВОМ ВЕДОМСТВА ===
-async function handleAssignRank() {
-    const email = document.getElementById('rankEmail').value;
-    const rank = document.getElementById('rankSelect').value;
-    if (!email) return alert("Введите точный Email сотрудника!");
-
-    const snapshot = await getDocs(collection(db, "users"));
-    let targetUid = null;
-    snapshot.forEach(d => { if (d.data().email === email) targetUid = d.id; });
-
-    if (targetUid) {
-        await setDoc(doc(db, "users", targetUid), { rank: rank }, { merge: true });
-        alert(`Приказ утвержден. Сотруднику ${email} присвоено звание: ${rank}`);
-        if(currentUser && currentUser.email === email) {
-            userRank = rank;
-            applyPermissions();
-        }
-    } else {
-        alert("Указанный адрес не зарегистрирован в базе данных системы.");
-    }
-}
-
-// === ИНТЕРФЕЙСНЫЕ МЕТОДЫ И ОКНА ===
-async function handleLogin() {
-    const e = document.getElementById('authEmail').value, p = document.getElementById('authPassword').value;
-    try { await signInWithEmailAndPassword(auth, e, p); closeModal('loginModal'); } 
-    catch(err) { alert("Отказ в авторизации: " + err.message); }
-}
-
+// === АВТОРИЗАЦИЯ ===
 async function handleRegister() {
-    const e = document.getElementById('authEmail').value, p = document.getElementById('authPassword').value;
+    const email = document.getElementById('regEmail').value;
+    const password = document.getElementById('regPassword').value;
+
+    if(!email.endsWith('@sssr.gov')) return alert("Формат почты: name@sssr.gov");
+    if(password.length < 6) return alert("Пароль должен быть минимум 6 символов!");
     try {
-        const cred = await createUserWithEmailAndPassword(auth, e, p);
-        await setDoc(doc(db, "users", cred.user.uid), { email: e, rank: "Гражданин" });
-        alert("Успешная регистрация личного дела. Текущий статус: Гражданин.");
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+        await setDoc(doc(db, "users", user.uid), { email: email, rank: 'Гражданин' });
+        alert("Учетная запись успешно создана!");
+        closeModal('registerModal');
+    } catch (error) {
+        if(error.code === 'auth/email-already-in-use') alert("Этот сотрудник уже зарегистрирован!");
+        else alert("Ошибка регистрации: " + error.message);
+    }
+}
+
+async function handleLogin() {
+    const email = document.getElementById('loginEmail').value;
+    const password = document.getElementById('loginPassword').value;
+
+    if(!email.endsWith('@sssr.gov')) return alert("Допускаются только гос. домены @sssr.gov");
+    try {
+        await signInWithEmailAndPassword(auth, email, password);
+        alert("Вход выполнен успешно!");
         closeModal('loginModal');
-    } catch(err) { alert("Ошибка формирования дела: " + err.message); }
+    } catch (error) {
+        alert("Ошибка входа: неверная почта или пароль.");
+    }
 }
 
-async function handleLogout() { await signOut(auth); }
+function handleLogout() {
+    signOut(auth).then(() => {
+        alert("Вы вышли из системы.");
+        switchTab('mainTab');
+    }).catch((error) => {
+        alert("Ошибка при выходе: " + error.message);
+    });
+}
 
+// === УПРАВЛЕНИЕ РАНГАМИ И СОТРУДНИКАМИ ===
+async function handleAssignRank() {
+    const targetEmail = document.getElementById('rankTargetEmail').value;
+    const newRank = document.getElementById('rankTargetValue').value;
+
+    if(!targetEmail) return alert("Введите почту сотрудника!");
+    try {
+        const usersRef = collection(db, "users");
+        const q = query(usersRef, where("email", "==", targetEmail));
+        const querySnapshot = await getDocs(q);
+        if (querySnapshot.empty) {
+            alert("Сотрудник с такой почтой не найден. Сначала он должен зарегистрироваться.");
+            return;
+        }
+
+        querySnapshot.forEach(async (document) => {
+            await updateDoc(doc(db, "users", document.id), { rank: newRank });
+        });
+        alert(`Звание "${newRank}" успешно утверждено для ${targetEmail}`);
+        
+        renderEmployees();
+        if(currentUser && currentUser.email === targetEmail) {
+            currentUser.rank = newRank;
+            updateAuthUI(currentUser);
+        }
+    } catch (error) {
+        alert("Ошибка при выдаче звания: " + error.message);
+    }
+}
+
+async function renderEmployees() {
+    const tbody = document.getElementById('employeesTableBody');
+    if (!currentUser || rolePermissions[currentUser.rank]?.isCivilian) return; 
+
+    tbody.innerHTML = '<tr><td colspan="3" class="px-6 py-4 text-center">Загрузка данных личного состава...</td></tr>';
+    try {
+        const querySnapshot = await getDocs(collection(db, "users"));
+        tbody.innerHTML = '';
+        querySnapshot.forEach((docSnap) => {
+            const u = docSnap.data();
+            const isAdmin = rolePermissions[u.rank]?.isFull;
+            tbody.innerHTML += `
+                <tr>
+                    <td class="px-6 py-4 font-medium">${u.email}</td>
+                    <td class="px-6 py-4">${u.rank}</td>
+                    <td class="px-6 py-4"><span class="px-2 py-1 text-xs rounded ${isAdmin ? 'bg-orange-100 text-orange-800 font-bold' : 'bg-gray-100'}">${isAdmin ? 'Управление' : 'Сотрудник'}</span></td>
+                </tr>
+            `;
+        });
+    } catch (error) {
+        tbody.innerHTML = `<tr><td colspan="3" class="px-6 py-4 text-center text-red-500">Ошибка базы данных.</td></tr>`;
+    }
+}
+
+// === ИНТЕРФЕЙС ===
 function switchTab(tabId) {
-    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-    document.getElementById(tabId).classList.add('active');
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+    document.getElementById(tabId).classList.remove('hidden');
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('text-blue-900', 'border-orange-500');
+        btn.classList.add('text-gray-600', 'border-transparent');
+    });
+    let btn = document.getElementById('btn-' + tabId);
+    if(btn) {
+        btn.classList.add('text-blue-900', 'border-orange-500');
+        btn.classList.remove('text-gray-600', 'border-transparent');
+    }
 }
 
-function toggleDropdown(id) {
-    const dropdown = document.getElementById(id);
-    const chevron = document.getElementById('sitemapChevron');
-    dropdown.classList.toggle('hidden');
-    if(chevron) chevron.classList.toggle('rotate-180');
+function updateAuthUI(user) {
+    const p = rolePermissions[user?.rank] || rolePermissions['Гражданин']; 
+    document.getElementById('guestMenu').classList.toggle('hidden', !!user);
+    document.getElementById('userMenu').classList.toggle('hidden', !user); 
+    document.getElementById('btn-employeesTab').classList.toggle('hidden', p.isCivilian); 
+    document.getElementById('btn-adminTab').classList.toggle('hidden', !(p.canManageRanks || p.canPost)); 
+    
+    if(user) { 
+        document.getElementById('navUsername').innerText = user.email.split('@')[0];
+        document.getElementById('navRole').innerText = user.rank; 
+    } else {
+        switchTab('mainTab'); 
+    }
+    renderPosts(); 
+    renderRecommendations();
 }
 
 function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
 function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
 
-// Публикация методов для вызова из HTML-кода
-Object.assign(window, { switchTab, toggleDropdown, openPage, openModal, closeModal, searchLaws, handleLogin, handleRegister, handleLogout, handleCreatePost, handleUpdateStats, deletePost, loadPageForEdit, handleSavePage, handleCreateRecommendation, deleteRecommendation, handleAssignRank });
+// === ДИНАМИЧЕСКИЕ ДАННЫЕ ИЗ FIREBASE ===
 
+async function renderStats() {
+    try {
+        const docSnap = await getDoc(doc(db, "globals", "stats"));
+        let stats = { events: 0, fires: 0, saved: 0, buildings: 0 };
+        if (docSnap.exists()) stats = docSnap.data();
+        
+        document.getElementById('stat-events').innerText = stats.events; 
+        document.getElementById('stat-fires').innerText = stats.fires; 
+        document.getElementById('stat-saved').innerText = stats.saved; 
+        document.getElementById('stat-buildings').innerText = stats.buildings;
+    } catch(e) { console.error(e); }
+}
+
+async function handleUpdateStats() {
+    const events = document.getElementById('opsEvents').value || "0";
+    const fires = document.getElementById('opsFires').value || "0";
+    const saved = document.getElementById('opsSaved').value || "0";
+    const buildings = document.getElementById('opsBuildings').value || "0";
+    
+    await setDoc(doc(db, "globals", "stats"), { events, fires, saved, buildings });
+    renderStats(); 
+    switchTab('mainTab'); 
+}
+
+async function renderPosts() { 
+    const grid = document.getElementById('newsGrid'); 
+    grid.innerHTML = '';
+    try {
+        const q = query(collection(db, "posts"), orderBy("timestamp", "desc"));
+        const querySnapshot = await getDocs(q);
+        querySnapshot.forEach(docSnap => {
+            const post = docSnap.data();
+            const showDel = currentUser && rolePermissions[currentUser.rank]?.isFull; 
+            grid.innerHTML += `<div class="bg-white rounded shadow border border-gray-100"> <div class="p-4 bg-gray-900 text-white h-28 flex flex-col justify-between"><div class="text-xs text-gray-400">${post.date}</div><h4 class="font-bold text-sm line-clamp-2">${post.title}</h4></div><div class="p-4 text-xs text-gray-600">${post.content}</div>${showDel ? `<div class="p-2 border-t"><button onclick="deletePost('${docSnap.id}')" class="text-red-500 text-xs">Удалить</button></div>` : ''}</div>`; 
+        });
+    } catch(e) { console.error(e); }
+}
+
+async function handleCreatePost() { 
+    const cat = document.getElementById('postCategory').value;
+    const title = document.getElementById('postTitle').value;
+    const content = document.getElementById('postContent').value;
+    if(!title || !content) return alert("Заполните поля!");
+
+    await addDoc(collection(db, "posts"), {
+        category: cat,
+        title: title, 
+        content: content, 
+        date: new Date().toLocaleDateString('ru'),
+        timestamp: serverTimestamp()
+    }); 
+    renderPosts(); 
+    switchTab('mainTab'); 
+}
+
+async function deletePost(id) { 
+    if(confirm("Удалить?")) {
+        await deleteDoc(doc(db, "posts", id)); 
+        renderPosts(); 
+    }
+}
+
+async function renderRecommendations() {
+    const grid = document.getElementById('recommendationsGrid');
+    grid.innerHTML = '';
+    try {
+        const querySnapshot = await getDocs(collection(db, "recommendations"));
+        querySnapshot.forEach(docSnap => {
+            const rec = docSnap.data();
+            const isAdmin = currentUser && rolePermissions[currentUser.rank]?.isFull;
+            const el = document.createElement('div');
+            el.className = "bg-white rounded shadow overflow-hidden relative group cursor-pointer hover:shadow-lg transition";
+            el.onclick = (e) => { if(!e.target.closest('button')) openPage(docSnap.id); };
+            el.innerHTML = `
+                <div class="h-32 bg-gradient-to-r ${rec.bg} p-4 flex items-end justify-between">
+                    <h4 class="text-white font-bold text-lg w-4/5">${rec.title}</h4>
+                    ${isAdmin ? `<button onclick="deleteRecommendation('${docSnap.id}')" class="text-white bg-black/30 hover:bg-red-500 px-2 py-1 rounded text-xs z-10 relative">Удалить</button>` : ''}
+                </div>
+                <div class="p-4 text-xs text-gray-600">${rec.desc}</div>
+            `;
+            grid.appendChild(el);
+        });
+    } catch(e) { console.error(e); }
+}
+
+async function handleCreateRecommendation() { 
+    const id = document.getElementById('recId').value, t = document.getElementById('recTitle').value, d = document.getElementById('recDesc').value, c = document.getElementById('recContent').value, b = document.getElementById('recColor').value;
+    if(!id || !t || !c) return alert("Заполните все поля!"); 
+    
+    await setDoc(doc(db, "pages", id), { title: t, content: c }, { merge: true });
+    await setDoc(doc(db, "recommendations", id), { title: t, desc: d, bg: b }); 
+    
+    renderRecommendations(); 
+    alert("Добавлено!"); 
+}
+
+async function deleteRecommendation(id) { 
+    if(confirm("Удалить?")) { 
+        await deleteDoc(doc(db, "recommendations", id)); 
+        renderRecommendations(); 
+    } 
+}
+
+async function openPage(pageId) {
+    document.getElementById('pageViewTitle').innerText = "Загрузка...";
+    document.getElementById('pageViewContent').innerText = "";
+    document.getElementById('sitemapDropdown').classList.add('hidden');
+    const chev = document.getElementById('sitemapChevron');
+    if(chev) chev.classList.remove('rotate-180');
+    switchTab('pageTab');
+
+    try {
+        const docSnap = await getDoc(doc(db, "pages", pageId));
+        if (docSnap.exists()) {
+            document.getElementById('pageViewTitle').innerText = docSnap.data().title || pageId;
+            document.getElementById('pageViewContent').innerText = docSnap.data().content;
+        } else {
+            document.getElementById('pageViewTitle').innerText = "Страница пуста";
+            document.getElementById('pageViewContent').innerText = "Заполните её текст через Админ-панель.";
+        }
+    } catch(e) { console.error(e); }
+}
+
+async function loadPageForEdit() { 
+    const pageId = document.getElementById('pageSelect').value;
+    try {
+        const docSnap = await getDoc(doc(db, "pages", pageId));
+        document.getElementById('pageEditorContent').value = docSnap.exists() ? (docSnap.data().content || "") : ""; 
+    } catch(e) { console.error(e); }
+}
+
+async function handleSavePage() { 
+    const pageId = document.getElementById('pageSelect').value;
+    const content = document.getElementById('pageEditorContent').value;
+    await setDoc(doc(db, "pages", pageId), { content: content }, { merge: true });
+    alert("Сохранено!"); 
+}
+
+async function renderLaws() { 
+    const c = document.getElementById('lawsContainer'); 
+    c.innerHTML = '';
+    try {
+        const querySnapshot = await getDocs(collection(db, "laws"));
+        if(querySnapshot.empty) {
+            // Если база законов пустая, добавляем дефолтные для старта
+            const defaultLaws = [
+                { id: "1.1", title: "Против хищения имущества", text: "Хищением признается тайное или открытое (грабеж) присвоение имущества..." },
+                { id: "1.2", title: "Против государственной измены и мятежа", text: "Под запретом находятся организация, участие или публичная агитация..." }
+            ];
+            for(let l of defaultLaws) { await setDoc(doc(db, "laws", l.id), l); }
+            renderLaws(); return;
+        }
+        querySnapshot.forEach(docSnap => { 
+            const law = docSnap.data();
+            c.innerHTML += `<div class="law-item border p-4 rounded-lg bg-gray-50"><h4 class="font-bold text-blue-900 text-sm mb-1">Статья ${law.id || docSnap.id}. ${law.title}</h4><p class="text-xs text-gray-700">${law.text}</p></div>`; 
+        });
+    } catch(e) { console.error(e); }
+}
+
+function searchLaws() { 
+    const q = document.getElementById('lawSearch').value.toLowerCase(); 
+    document.querySelectorAll('.law-item').forEach(i => i.style.display = i.innerText.toLowerCase().includes(q) ? 'block' : 'none'); 
+}
+
+// ЭКСПОРТ ФУНКЦИЙ В ГЛОБАЛЬНУЮ ЗОНУ ВИДИМОСТИ ДЛЯ HTML
+Object.assign(window, { switchTab, searchLaws, openModal, closeModal, handleLogin, handleRegister, handleLogout, handleCreatePost, handleUpdateStats, handleAssignRank, deletePost, openPage, loadPageForEdit, handleSavePage, handleCreateRecommendation, deleteRecommendation });
 document.addEventListener('DOMContentLoaded', init);
