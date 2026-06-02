@@ -1,0 +1,10 @@
+/* Основные фирменные цвета МЧС ШССР */
+.bg-mchs-blue { background-color: #0b2240; }
+.bg-mchs-dark { background-color: #111827; }
+.text-mchs-orange { color: #f97316; }
+.border-mchs-orange { border-color: #f97316; }
+
+/* Плавные переходы для кнопок вкладок */
+.tab-btn {
+    transition: all 0.2s ease-in-out;
+}
