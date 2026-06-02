@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>МЧС ШССР — Официальный веб-сайт</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans flex flex-col min-h-screen">
+
+    <nav class="bg-mchs-blue text-white text-sm border-b border-blue-900">
+        <div class="max-w-7xl mx-auto px-4 flex justify-between items-center h-12">
+            <div class="relative">
+                <button id="sitemapToggle" class="flex items-center gap-2 hover:text-orange-400 transition">
+                    Мапа порталу <i class="fa-solid fa-chevron-down text-xs transition-transform" id="sitemapChevron"></i>
+                </button>
+            </div>
+            
+            <div class="flex items-center gap-4" id="authWidget">
+                <div id="guestMenu" class="flex gap-3">
+                    <button onclick="openModal('loginModal')" class="hover:text-orange-400">Войти</button>
+                    <button onclick="openModal('registerModal')" class="bg-orange-500 text-white px-3 py-1 rounded hover:bg-orange-600">Регистрация</button>
+                </div>
+                <div id="userMenu" class="hidden flex items-center gap-2">
+                    <span id="navUsername" class="text-white font-normal">admin</span>
+                    <span id="navRole" class="bg-blue-100 text-blue-900 text-xs px-2 py-0.5 rounded font-medium">Гражданин</span>
+                    <button onclick="handleLogout()" class="bg-red-500 hover:bg-red-600 text-white text-xs px-3 py-1 rounded transition ml-1">Выйти</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div id="sitemapDropdown" class="hidden bg-mchs-dark text-gray-300 border-b border-gray-800 shadow-inner">
+        <div class="max-w-7xl mx-auto p-6 grid grid-cols-2 md:grid-cols-4 gap-6 text-sm">
+            <div>
+                <h4 class="text-white font-bold mb-2 border-l-2 border-mchs-orange pl-2">Актуально</h4>
+                <ul class="space-y-2 text-gray-400">
+                    <li><button onclick="openPage('air')" class="hover:text-white text-left w-full">Состояние атмосферного воздуха</button></li>
+                    <li><button onclick="openPage('heroes')" class="hover:text-white text-left w-full">Герои МЧС ШССР</button></li>
+                </ul>
+            </div>
+            <div>
+                <h4 class="text-white font-bold mb-2 border-l-2 border-mchs-orange pl-2">Рекомендации</h4>
+                <ul class="space-y-2 text-gray-400">
+                    <li><button onclick="openPage('crisis')" class="hover:text-white text-left w-full">Как пережить кризис</button></li>
+                    <li><button onclick="openPage('attack')" class="hover:text-white text-left w-full">Действия при обстрелах</button></li>
+                    <li><button onclick="openPage('curfew')" class="hover:text-white text-left w-full">Правила комендантского часа</button></li>
+                </ul>
+            </div>
+            <div>
+                <h4 class="text-white font-bold mb-2 border-l-2 border-mchs-orange pl-2">Деятельность</h4>
+                <ul class="space-y-2 text-gray-400">
+                    <li><button onclick="openPage('normative')" class="hover:text-white text-left w-full">Нормативная база</button></li>
+                    <li><button onclick="openPage('tech')" class="hover:text-white text-left w-full">Техническое обеспечение</button></li>
+                </ul>
+            </div>
+            <div>
+                <h4 class="text-white font-bold mb-2 border-l-2 border-mchs-orange pl-2">Культура</h4>
+                <ul class="space-y-2 text-gray-400">
+                    <li><button onclick="openPage('architecture')" class="hover:text-white text-left w-full">Брутализм и архитектура</button></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <header class="bg-mchs-blue text-white py-8 border-b-4 border-orange-500">
+        <div class="max-w-7xl mx-auto px-4 flex flex-col items-center text-center">
+            <div class="w-20 h-20 bg-white rounded-full flex items-center justify-center p-1 shadow-lg mb-3 overflow-hidden">
+                <svg class="w-full h-full text-orange-500" viewBox="0 0 24 24" fill="currentColor">
+                    <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/>
+                    <path d="M12 2L14.8 8.5L22 9.2L16.5 14L18.2 21L12 17.3L5.8 21L7.5 14L2 9.2L9.2 8.5L12 2Z"/>
+                </svg>
+            </div>
+            <h1 class="text-2xl md:text-3xl font-bold tracking-wide uppercase">Министерство Чрезвычайных Ситуаций ШССР</h1>
+            <p class="text-xs text-blue-300 mt-1 tracking-widest">Официальный веб-сайт • Шведская ССР</p>
+        </div>
+    </header>
+
+    <div class="bg-white shadow">
+        <div class="max-w-7xl mx-auto px-4 flex flex-wrap gap-2">
+            <button onclick="switchTab('mainTab')" class="tab-btn px-4 py-3 font-medium text-blue-900 border-b-2 border-orange-500" id="btn-mainTab">Главная</button>
+            <button onclick="switchTab('lawsTab')" class="tab-btn px-4 py-3 font-medium text-gray-600 hover:text-blue-900 border-b-2 border-transparent" id="btn-lawsTab">Законы ШССР</button>
+            <button onclick="switchTab('employeesTab')" class="tab-btn px-4 py-3 font-medium text-gray-600 hover:text-blue-900 border-b-2 border-transparent hidden" id="btn-employeesTab">Все сотрудники</button>
+            <button onclick="switchTab('adminTab')" class="tab-btn px-4 py-3 font-medium text-gray-600 hover:text-blue-900 border-b-2 border-transparent hidden" id="btn-adminTab">Админ-панель</button>
+        </div>
+    </div>
+
+    <main class="flex-grow max-w-7xl w-full mx-auto p-4 md:p-6">
+        
+        <div id="mainTab" class="tab-content space-y-8">
+            <section>
+                <h3 class="text-xl font-bold text-gray-900 mb-4 text-center md:text-left">Оперативная информация за последние сутки</h3>
+                <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+                    <div class="bg-white p-4 rounded shadow border-l-4 border-blue-600 text-center"><div class="text-2xl font-bold text-blue-900" id="stat-events">0</div><div class="text-xs text-gray-500 uppercase mt-1">Всего событий</div></div>
+                    <div class="bg-white p-4 rounded shadow border-l-4 border-red-600 text-center"><div class="text-2xl font-bold text-red-600" id="stat-fires">0</div><div class="text-xs text-gray-500 uppercase mt-1">Пожары</div></div>
+                    <div class="bg-white p-4 rounded shadow border-l-4 border-green-600 text-center"><div class="text-2xl font-bold text-green-600" id="stat-saved">0</div><div class="text-xs text-gray-500 uppercase mt-1">Спасенные лица</div></div>
+                    <div class="bg-white p-4 rounded shadow border-l-4 border-yellow-600 text-center"><div class="text-2xl font-bold text-yellow-600" id="stat-buildings">0</div><div class="text-xs text-gray-500 uppercase mt-1">Здания сохранены</div></div>
+                    <div class="bg-white p-4 rounded shadow border-l-4 border-purple-600 text-center col-span-2 md:col-span-1"><div class="text-sm font-bold text-purple-900">0.012 мР/час</div><div class="text-xs text-gray-500 uppercase mt-1">Радиационный фон</div></div>
+                </div>
+            </section>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="lg:col-span-2 space-y-6">
+                    <h3 class="text-xl font-bold text-gray-900 border-b pb-2">Последние публикации и происшествия</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="newsGrid"></div>
+                </div>
+                <div class="space-y-6">
+                    <h3 class="text-xl font-bold text-gray-900 border-b pb-2">Рекомендации населению</h3>
+                    <div id="recommendationsGrid" class="space-y-4"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="pageTab" class="tab-content hidden space-y-6">
+            <div class="bg-white p-8 rounded shadow">
+                <button onclick="switchTab('mainTab')" class="text-blue-900 text-sm font-bold mb-6 hover:text-orange-500"><i class="fa-solid fa-arrow-left"></i> Назад на главную</button>
+                <h2 id="pageViewTitle" class="text-3xl font-bold text-gray-900 mb-6 border-b pb-4">Заголовок страницы</h2>
+                <div id="pageViewContent" class="prose max-w-none text-gray-700 leading-relaxed whitespace-pre-wrap">Текст страницы...</div>
+            </div>
+        </div>
+
+        <div id="lawsTab" class="tab-content hidden space-y-6">
+            <div class="bg-white p-6 rounded shadow">
+                <h2 class="text-2xl font-bold text-gray-900 mb-2">📜 Законодательная база Шведской ССР</h2>
+                <div class="relative mb-6"><span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400"><i class="fa-solid fa-magnifying-glass"></i></span><input type="text" id="lawSearch" onkeyup="searchLaws()" placeholder="Поиск по статьям..." class="w-full pl-10 pr-4 py-2 border rounded-lg"></div>
+                <div class="space-y-4" id="lawsContainer"></div>
+            </div>
+        </div>
+
+        <div id="employeesTab" class="tab-content hidden space-y-6">
+            <div class="bg-white p-6 rounded shadow">
+                <h2 class="text-2xl font-bold text-gray-900 mb-4">👥 Реестр личного состава МЧС и Ведомств</h2>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200 text-left text-sm">
+                        <thead class="bg-gray-50"><tr><th class="px-6 py-3 font-semibold text-gray-700 uppercase">Почта</th><th class="px-6 py-3 font-semibold text-gray-700 uppercase">Звание / Должность</th><th class="px-6 py-3 font-semibold text-gray-700 uppercase">Статус</th></tr></thead>
+                        <tbody id="employeesTableBody" class="divide-y divide-gray-200 bg-white"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="adminTab" class="tab-content hidden space-y-6">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="bg-white p-6 rounded shadow space-y-4">
+                    <h3 class="text-lg font-bold border-b pb-2 text-gray-900">Опубликовать новость</h3>
+                    <select id="postCategory" class="w-full p-2 border rounded"><option value="Новости">Общие новости</option><option value="Техническое обеспечение">Техническое обеспечение</option><option value="Брутализм и архитектура">Брутализм и архитектура</option></select>
+                    <input type="text" id="postTitle" placeholder="Заголовок" class="w-full p-2 border rounded">
+                    <textarea id="postContent" rows="3" placeholder="Текст материала" class="w-full p-2 border rounded"></textarea>
+                    <button onclick="handleCreatePost()" class="w-full bg-blue-900 text-white font-bold py-2 rounded">Разместить новость</button>
+                </div>
+
+                <div class="bg-white p-6 rounded shadow space-y-4">
+                    <h3 class="text-lg font-bold border-b pb-2 text-gray-900">Обновить оперативную сводку</h3>
+                    <div class="grid grid-cols-2 gap-4">
+                        <input type="number" id="opsEvents" placeholder="Всего событий" class="p-2 border rounded">
+                        <input type="number" id="opsFires" placeholder="Пожары" class="p-2 border rounded">
+                        <input type="number" id="opsSaved" placeholder="Спасенные" class="p-2 border rounded">
+                        <input type="number" id="opsBuildings" placeholder="Сохранено зданий" class="p-2 border rounded">
+                    </div>
+                    <button onclick="handleUpdateStats()" class="w-full bg-orange-500 text-white font-bold py-2 rounded">Обновить информеры</button>
+                </div>
+
+                <div class="bg-white p-6 rounded shadow space-y-4">
+                    <h3 class="text-lg font-bold border-b pb-2 text-gray-900">Добавить рекомендацию населению</h3>
+                    <input type="text" id="recId" placeholder="ID страницы (английскими, напр. fire_safety)" class="w-full p-2 border rounded text-sm">
+                    <input type="text" id="recTitle" placeholder="Заголовок на карточке" class="w-full p-2 border rounded">
+                    <input type="text" id="recDesc" placeholder="Краткое описание" class="w-full p-2 border rounded text-sm">
+                    <textarea id="recContent" rows="3" placeholder="Полный текст рекомендации (откроется при клике)" class="w-full p-2 border rounded text-sm"></textarea>
+                    <select id="recColor" class="w-full p-2 border rounded text-sm">
+                        <option value="from-red-500 to-orange-500">Красный-Оранжевый (Тревога)</option>
+                        <option value="from-slate-700 to-slate-900">Темно-серый (Защита)</option>
+                        <option value="from-blue-600 to-blue-800">Синий (МЧС)</option>
+                    </select>
+                    <button onclick="handleCreateRecommendation()" class="w-full bg-green-600 text-white font-bold py-2 rounded">Создать рекомендацию</button>
+                </div>
+
+                <div class="bg-white p-6 rounded shadow space-y-4">
+                    <h3 class="text-lg font-bold border-b pb-2 text-gray-900">Редактировать страницы портала</h3>
+                    <select id="pageSelect" class="w-full p-2 border rounded text-sm" onchange="loadPageForEdit()">
+                        <option value="air">Состояние атмосферного воздуха</option>
+                        <option value="heroes">Герои МЧС ШССР</option>
+                        <option value="crisis">Как пережить кризис</option>
+                        <option value="attack">Действия при обстрелах</option>
+                        <option value="curfew">Правила комендантского часа</option>
+                        <option value="normative">Нормативная база</option>
+                        <option value="tech">Техническое обеспечение</option>
+                        <option value="architecture">Брутализм и архитектура</option>
+                    </select>
+                    <textarea id="pageEditorContent" rows="6" placeholder="Впишите текст страницы сюда..." class="w-full p-2 border rounded text-sm"></textarea>
+                    <button onclick="handleSavePage()" class="w-full bg-blue-900 text-white font-bold py-2 rounded">Сохранить страницу</button>
+                </div>
+            </div>
+            
+            <div class="bg-white p-6 rounded shadow space-y-4 w-full md:w-1/2">
+                <h3 class="text-lg font-bold border-b pb-2 text-gray-900">Присвоение рангов</h3>
+                <input type="email" id="rankTargetEmail" placeholder="user@sssr.gov" class="w-full p-2 border rounded">
+                <select id="rankTargetValue" class="w-full p-2 border rounded">
+                    <option value="Гражданин">Гражданин</option><option value="Строители">Строитель</option><option value="ВЧК">ВЧК</option><option value="Издатель газет">Издатель газет</option><option value="Верховный совет">Верховный совет</option><option value="Нарком.Строительства">Нарком Строительства</option><option value="Нарком.Пром">Нарком Пром</option><option value="Нарком ВЧК">Нарком ВЧК</option><option value="Секретарь ЦК СПШ">Секретарь ЦК СПШ</option><option value="Ген.сек">Ген.сек</option>
+                </select>
+                <button onclick="handleAssignRank()" class="w-full bg-gray-800 text-white font-bold py-2 rounded">Утвердить звание</button>
+            </div>
+        </div>
+    </main>
+
+    <div id="loginModal" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center p-4 z-50"><div class="bg-white rounded p-6 max-w-sm w-full space-y-4"><h3 class="text-xl font-bold">Вход</h3><input type="email" id="loginEmail" placeholder="name@sssr.gov" class="w-full p-2 border rounded"><input type="password" id="loginPassword" placeholder="Пароль" class="w-full p-2 border rounded"><div class="flex justify-end gap-2"><button onclick="closeModal('loginModal')" class="px-4 py-2 text-gray-500">Отмена</button><button onclick="handleLogin()" class="px-4 py-2 bg-blue-900 text-white rounded">Войти</button></div></div></div>
+    <div id="registerModal" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center p-4 z-50"><div class="bg-white rounded p-6 max-w-sm w-full space-y-4"><h3 class="text-xl font-bold">Регистрация</h3><input type="email" id="regEmail" placeholder="name@sssr.gov" class="w-full p-2 border rounded"><input type="password" id="regPassword" placeholder="Пароль" class="w-full p-2 border rounded"><div class="flex justify-end gap-2"><button onclick="closeModal('registerModal')" class="px-4 py-2 text-gray-500">Отмена</button><button onclick="handleRegister()" class="px-4 py-2 bg-orange-500 text-white rounded">Создать</button></div></div></div>
+
+ <footer class="bg-mchs-dark text-gray-400 text-xs py-8 mt-auto border-t border-gray-800">
+        <div class="max-w-7xl mx-auto px-4 flex flex-col items-center text-center gap-4">
+            <div class="flex gap-4 text-base">
+                <a href="#" class="hover:text-white"><i class="fa-brands fa-telegram"></i></a>
+                <a href="#" class="hover:text-white"><i class="fa-brands fa-facebook"></i></a>
+                <a href="#" class="hover:text-white"><i class="fa-brands fa-x-twitter"></i></a>
+                <a href="#" class="hover:text-white"><i class="fa-brands fa-youtube"></i></a>
+                <a href="#" class="hover:text-white"><i class="fa-brands fa-instagram"></i></a>
+                <a href="https://discord.gg/your-invite" target="_blank" class="text-blue-400 hover:text-white" title="Наш Discord"><i class="fa-brands fa-discord"></i></a>
+            </div>
+            <div class="flex flex-col items-center gap-2">
+                <button class="flex items-center gap-1 hover:text-white"><i class="fa-solid fa-eye"></i> Людям із порушенням зору</button>
+                <div class="flex gap-2">
+                    <span class="text-white font-bold border-b border-white">RU</span>
+                    <span class="cursor-pointer hover:text-white">EN</span>
+                </div>
+            </div>
+            <p>Если не указано иное, все материалы размещены на условиях лицензии <span class="text-white font-medium">Creative Commons Attribution 4.0 International license</span></p>
+            <p class="text-gray-500">Разработчик сайта — <span class="text-orange-400 font-mono">skywawer1</span></p>
+        </div>
+    </footer>
+
+    <script type="module" src="app.js"></script>
+</body>
+</html>
